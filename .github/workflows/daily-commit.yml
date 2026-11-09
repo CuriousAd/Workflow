@@ -1,4 +1,4 @@
-name: Daily Commit
+name: Natural Commit Activity
 
 on:
   schedule:
@@ -14,11 +14,36 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}  # ✅ allows push access
 
+      - name: Randomize whether today's run has activity
+        id: activity
+        shell: bash
+        run: |
+          # Manual runs are always honored. Scheduled runs commit on about 45% of days.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_commit=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if (( RANDOM % 100 < 45 )); then
+            echo "should_commit=true" >> "$GITHUB_OUTPUT"
+            echo "Today's run will create activity."
+          else
+            echo "should_commit=false" >> "$GITHUB_OUTPUT"
+            echo "No activity scheduled for today."
+          fi
+
+      - name: Add a natural time variation
+        if: steps.activity.outputs.should_commit == 'true' && github.event_name == 'schedule'
+        shell: bash
+        run: sleep $((RANDOM % 1801))
+
       - name: Commit step - 22f3001001@ds.study.iitm.ac.in
+        if: steps.activity.outputs.should_commit == 'true'
         run: |
           echo "TDSFU Daily run: $(date -u) TDSFU" >> daily-log.txt
 
       - name: Git Commit and Push
+        if: steps.activity.outputs.should_commit == 'true'
         run: |
           git config user.name "Aditya" # Replace with your GitHub username if preferred
           git config user.email "22f3001001@ds.study.iitm.ac.in" # Ensure this matches your GitHub email
